@@ -1,0 +1,198 @@
+from flask import Flask, jsonify,request
+import requests
+import re
+from datetime import datetime
+
+import matplotlib
+from io import BytesIO
+import base64
+
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+
+url = 'https://store.ncss.cloud/store/group5'
+predictionURL = 'https://store.ncss.cloud/store/group5-pre'
+
+
+
+
+now = datetime. now()
+current_time = now.strftime("%H:%M:%S")
+print("Current Time =", current_time)
+print("Starting")
+
+app = Flask(__name__)
+
+# Test Room: syd-5-testing
+# Group 5 testing
+
+'''
+@app.route('/syd-5-ezra-help', methods = ['POST'])
+def helpMood():
+    data = request.get_json()
+    text = data.get()
+'''
+
+# Responds to: 
+# log my mood (number)
+
+@app.route('/log-mood', methods = ['POST'])
+def logMood():
+    data = request.get_json()
+    text = data.get('text')
+    
+    
+    if 'log my mood' in text:
+        print("Okay!")
+
+        # Default 
+        message = {
+            'author' : 'E.Z.R.A',
+            'text' : ''
+        }
+
+        # Request everything from cloud
+        req = requests.get(url)
+
+        # Convert to JSON format
+        logged = req.json()
+
+
+        # New message
+        newMessage = 'You have logged your mood at rating:'
+        message['text'] = newMessage
+
+        try:
+            newRating = re.search("[0-9]+", text).group(0)
+            #print(newRating)
+        except:
+            TypeError
+
+        # Append the new number to the logged list
+        logged.append(newRating)
+        print('cleared')
+        #logged.clear()
+        print(logged)
+        # Construct the string
+        message['text'] = message['text'] + " " + newRating
+        # Post the new rating to the cloud
+        requests.post(url, json=logged)  
+
+        # Return the final constructed message  
+        return jsonify(message)
+
+    else:
+        #print("I don't know that command!")
+        return jsonify("I don't know that command!")
+
+
+
+
+@app.route('/syd-5-logged-mood', methods = ['POST'])
+def loggedMoods():
+    data = request.get_json()
+    text = data.get('text')
+
+    if 'logged moods'or 'LoggedMoods' or 'Logged Moods' or 'logged Moods' or 'Logged moods' in text:
+        #print('logged')
+        req = requests.get(url)
+        reqJ = req.json()
+        #print("Here are your logged moods")
+        
+        #print(reqJ)
+        req1 = ', '.join(reqJ)
+        #print(reqJ)
+        message = {
+            'author' : 'Ezra Logged (no graph)',
+            'text' : ''
+        }
+
+        message['text'] = f'Your logged moods: {req1}'
+        #print(message)
+        print(req1)
+
+        return jsonify(message)
+
+    else: 
+        return {}
+
+
+@app.route('/help', methods = ['GET'])
+def moodHelp():
+    msg = "<b>Commands for MoodTrackerBot:</b><br>\
+    - 'Log my mood (provide how you're feeling on a scale of 0-10)'<br>\
+    ---> This adds your mood to the mood tracker<br>\
+    - 'Check my mood'<br>\
+    ---> This produces a graph of your mood over time<br>\
+    - 'Logged moods'<br>\
+    ---> This produces a list of the moods you've added<br>\
+    "
+    message = {
+        'author' : 'Moodie',
+        'text' : f'Welcome to Mood Bot!<br> {msg}'
+        }
+    return jsonify(message)
+
+
+@app.route('/plot-mood')
+def clear():
+    data = request.get_json()
+    text = data.get('text')
+
+
+
+
+@app.route("/plot-mood", methods = ['POST'])
+def plotting():
+    data = request.get_json()
+    text = data.get('text')
+
+
+    if 'check my mood' or 'Check my mood' or 'check My mood' or 'check my Mood' or 'Check My Mood' or 'Check My mood' in text:
+        plt.xlabel("Days") 
+        plt.ylabel("Mood")
+
+        Preq = requests.get(predictionURL)
+        PreqJ = Preq.json()
+        print(PreqJ)
+
+        req = requests.get(url)
+        reqJ = req.json()
+        req1 = ', '.join(reqJ)
+        reqP = ' '.join(reqJ)
+
+        loggedMoods = []
+        days = []
+
+        dayCount = 0
+        for num in reqJ:
+            dayCount += 1
+            print(num)
+            loggedMoods.append(int(num))
+            days.append(int(dayCount))
+
+        #for i in PreqJ:
+        #    dayCount += 1
+        #    loggedMoods.append(int(i))
+        #    days.append(int(dayCount))
+
+        #print(mainPlot)
+        mainPlot = plt.plot(days, loggedMoods)
+
+
+
+        image = BytesIO()
+        plt.savefig(image, format = 'png')
+        imgString = base64.encodestring(image.getvalue()).decode('ascii')
+        print('returning')
+
+        message = {
+            'author' : 'Ezra',
+            'text' : f'<img src="data:image/png;base64,{imgString}">'
+        }
+
+        return jsonify(message)
+
+
+app.run(host = '0.0.0.0', debug = True)
